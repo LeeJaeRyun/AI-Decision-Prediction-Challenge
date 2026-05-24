@@ -1,0 +1,62 @@
+[
+  {
+    "tool_name": "calendar.create_event",
+    "description": "새로운 캘린더 일정을 생성한다.",
+    "parameters": ["title", "date", "time"]
+  },
+  {
+    "tool_name": "calendar.update_event",
+    "description": "기존 캘린더 일정의 날짜, 시간, 제목 등을 수정한다.",
+    "parameters": ["event", "date", "time"]
+  },
+  {
+    "tool_name": "weather.search",
+    "description": "특정 지역과 날짜의 날씨, 강수 여부, 기온을 조회한다.",
+    "parameters": ["location", "date"]
+  },
+  {
+    "tool_name": "email.send",
+    "description": "수신자에게 이메일을 보낸다.",
+    "parameters": ["recipient", "subject", "body"]
+  },
+  {
+    "tool_name": "slack.send_message",
+    "description": "슬랙 채널이나 사용자에게 메시지를 보낸다.",
+    "parameters": ["channel", "message"]
+  },
+  {
+    "tool_name": "reminder.create",
+    "description": "특정 날짜와 시간에 알림 또는 리마인더를 생성한다.",
+    "parameters": ["title", "date", "time"]
+  },
+  {
+    "tool_name": "web.search",
+    "description": "웹에서 키워드나 질문을 검색한다.",
+    "parameters": ["query"]
+  },
+  {
+    "tool_name": "file.create_document",
+    "description": "문서 파일을 새로 생성한다.",
+    "parameters": ["title", "content"]
+  },
+  {
+    "tool_name": "todo.create_task",
+    "description": "할 일 목록에 작업을 추가한다.",
+    "parameters": ["task", "due_date"]
+  },
+  {
+    "tool_name": "map.search_place",
+    "description": "지도에서 장소, 주소, 주변 시설을 검색한다.",
+    "parameters": ["query", "location"]
+  },
+  {
+    "tool_name": "translate.text",
+    "description": "텍스트를 다른 언어로 번역한다.",
+    "parameters": ["text", "target_language"]
+  },
+  {
+    "tool_name": "calculator.calculate",
+    "description": "수식이나 숫자 계산을 수행한다.",
+    "parameters": ["expression"]
+  }
+]

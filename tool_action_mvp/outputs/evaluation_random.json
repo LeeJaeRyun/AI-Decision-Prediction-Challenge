@@ -1,0 +1,11 @@
+{
+  "total": 19,
+  "tool_accuracy": 0.15789473684210525,
+  "argument_f1": 0.0,
+  "normalized_argument_f1": 0.0,
+  "exact_match": 0.0,
+  "normalized_exact_match": 0.0,
+  "json_success_rate": 1.0,
+  "hallucinated_tool_rate": 0.0,
+  "avg_latency_ms": 0.0
+}

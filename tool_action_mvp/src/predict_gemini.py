@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
+import mimetypes
 import os
 import re
 import ssl
@@ -48,7 +50,8 @@ def build_prompt(tools: list[dict[str, Any]], instruction: str) -> str:
     tool_text = json.dumps(tools, ensure_ascii=False, indent=2)
     return (
         "너는 Tool-Action JSON 예측기다.\n"
-        "사용자의 한국어 지시문을 보고 다음에 호출해야 할 Tool-Action을 예측해라.\n"
+        "사용자의 한국어 지시문과 함께 제공된 이미지/오디오 컨텍스트를 보고 다음에 호출해야 할 Tool-Action을 예측해라.\n"
+        "이미지나 오디오에 있는 일정, 시간, 장소, 수신자, 메시지 같은 정보를 arguments에 반영해라.\n"
         "실제 이메일, 캘린더, 슬랙, 파일, 웹 검색을 실행하지 마라.\n"
         "반드시 사용 가능한 tool_name 중 하나를 선택해라.\n"
         "응답은 JSON 객체 하나만 반환해라.\n\n"
@@ -57,6 +60,63 @@ def build_prompt(tools: list[dict[str, Any]], instruction: str) -> str:
         f"사용 가능한 Tool 목록:\n{tool_text}\n\n"
         f"사용자 지시문:\n{instruction}"
     )
+
+
+def guess_mime_type(path: Path) -> str:
+    guessed, _ = mimetypes.guess_type(path.name)
+    if guessed:
+        return guessed
+    suffix = path.suffix.lower()
+    if suffix == ".wav":
+        return "audio/wav"
+    if suffix == ".mp3":
+        return "audio/mpeg"
+    if suffix == ".png":
+        return "image/png"
+    if suffix in {".jpg", ".jpeg"}:
+        return "image/jpeg"
+    raise ValueError(f"지원하지 않는 멀티모달 파일 형식입니다: {path}")
+
+
+def media_paths_from_item(item: dict[str, Any], data_path: str | Path) -> list[Path]:
+    base_dir = Path(data_path).resolve().parent
+    paths: list[Path] = []
+    for key in ("image_path", "audio_path"):
+        value = item.get(key)
+        if isinstance(value, str) and value.strip():
+            paths.append(resolve_media_path(value, base_dir))
+    for key in ("image_paths", "audio_paths"):
+        value = item.get(key)
+        if isinstance(value, list):
+            for raw_path in value:
+                if isinstance(raw_path, str) and raw_path.strip():
+                    paths.append(resolve_media_path(raw_path, base_dir))
+    return paths
+
+
+def resolve_media_path(raw_path: str, base_dir: Path) -> Path:
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = base_dir / path
+    path = path.resolve()
+    if not path.exists() or not path.is_file():
+        raise FileNotFoundError(f"멀티모달 파일을 찾을 수 없습니다: {path}")
+    return path
+
+
+def build_media_parts(media_paths: list[Path]) -> list[dict[str, Any]]:
+    parts: list[dict[str, Any]] = []
+    for path in media_paths:
+        data = base64.b64encode(path.read_bytes()).decode("ascii")
+        parts.append(
+            {
+                "inlineData": {
+                    "mimeType": guess_mime_type(path),
+                    "data": data,
+                }
+            }
+        )
+    return parts
 
 
 def load_tools(path: str) -> list[dict[str, Any]]:
@@ -102,15 +162,24 @@ def extract_text(response_data: dict[str, Any]) -> str:
     return text
 
 
-def call_gemini(api_key: str, model: str, tools: list[dict[str, Any]], instruction: str) -> dict[str, Any]:
+def call_gemini(
+    api_key: str,
+    model: str,
+    tools: list[dict[str, Any]],
+    instruction: str,
+    media_paths: list[Path] | None = None,
+) -> dict[str, Any]:
     encoded_model = urllib.parse.quote(model, safe="")
     query = urllib.parse.urlencode({"key": api_key})
     url = f"{API_BASE_URL}/{encoded_model}:generateContent?{query}"
+    parts = [{"text": build_prompt(tools, instruction)}]
+    if media_paths:
+        parts.extend(build_media_parts(media_paths))
     payload = {
         "contents": [
             {
                 "role": "user",
-                "parts": [{"text": build_prompt(tools, instruction)}],
+                "parts": parts,
             }
         ],
         "generationConfig": {
@@ -142,10 +211,11 @@ def predict_one(
     model: str,
     tools: list[dict[str, Any]],
     instruction: str,
+    media_paths: list[Path] | None = None,
 ) -> tuple[dict[str, Any] | None, bool, str | None, int]:
     started = time.perf_counter()
     try:
-        action = call_gemini(api_key, model, tools, instruction)
+        action = call_gemini(api_key, model, tools, instruction, media_paths)
         latency_ms = int((time.perf_counter() - started) * 1000)
         return action, True, None, latency_ms
     except Exception as exc:
@@ -175,11 +245,14 @@ def main() -> None:
             print(f"{args.delay_seconds}초 대기 후 다음 요청을 보냅니다.")
             time.sleep(args.delay_seconds)
         instruction = str(item.get("instruction", ""))
-        pred_action, json_success, error, latency_ms = predict_one(api_key, model, tools, instruction)
+        media_paths = media_paths_from_item(item, args.data)
+        pred_action, json_success, error, latency_ms = predict_one(api_key, model, tools, instruction, media_paths)
         predictions.append(
             {
                 "id": item.get("id"),
                 "instruction": instruction,
+                "image_path": item.get("image_path"),
+                "audio_path": item.get("audio_path"),
                 "gold_action": item.get("gold_action"),
                 "pred_action": pred_action,
                 "json_success": json_success,
@@ -188,7 +261,8 @@ def main() -> None:
             }
         )
         status = "성공" if json_success else f"실패: {error}"
-        print(f"[{index}/{len(data)}] id={item.get('id')} {status}")
+        media_status = f", media={len(media_paths)}" if media_paths else ""
+        print(f"[{index}/{len(data)}] id={item.get('id')}{media_status} {status}")
 
     write_jsonl(args.output, predictions)
     print(f"예측 결과 저장: {args.output}")

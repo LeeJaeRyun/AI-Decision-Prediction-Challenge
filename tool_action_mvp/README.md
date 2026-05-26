@@ -107,3 +107,28 @@ python src/make_result_table.py --inputs outputs/evaluation_random.json outputs/
 ## 결과보고서 문장 예시
 
 본 실험은 한국어 사용자 지시문 50개와 12개 Tool 정의를 사용해 Tool-Action 예측 성능을 비교했다. Random baseline, Keyword baseline, OpenAI 기반 예측, Gemini 기반 예측은 동일한 `evaluate.py`로 평가했으며, 결과표의 모든 수치는 저장된 `predictions.jsonl` 파일에서 계산했다. 따라서 보고서의 Tool Accuracy, Argument F1, Exact Match, JSON Success Rate 값은 임의 입력값이 아니라 재현 가능한 평가 스크립트의 산출물이다.
+
+## 멀티모달 이미지/음성 확장
+
+`predict_gemini.py`는 텍스트 지시문뿐 아니라 JSONL 샘플의 `image_path`, `audio_path`, `image_paths`, `audio_paths` 필드를 읽어 Gemini에 실제 이미지/오디오 바이너리를 함께 전달한다. 상대 경로는 데이터 파일이 있는 `data/` 디렉터리를 기준으로 해석한다.
+
+발표용 멀티모달 샘플 자산 생성:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\generate_multimodal_assets.ps1
+```
+
+멀티모달 예측 및 평가:
+
+```bash
+python src/predict_gemini.py --tools tools.json --data data/multimodal_test_data.jsonl --output outputs/predictions_gemini_multimodal.jsonl
+python src/evaluate.py --tools tools.json --predictions outputs/predictions_gemini_multimodal.jsonl --output outputs/evaluation_gemini_multimodal.json --detail outputs/evaluation_detail_gemini_multimodal.csv
+```
+
+로컬 인증서 문제로 Gemini 호출이 실패하면 다음처럼 실행할 수 있다.
+
+```powershell
+$env:GEMINI_ALLOW_INSECURE_SSL='1'; python src\predict_gemini.py --tools tools.json --data data\multimodal_test_data.jsonl --output outputs\predictions_gemini_multimodal.jsonl
+```
+
+현재 멀티모달 샘플은 이미지 3개, 음성 2개로 구성되어 있으며, `Gemini-MM` 결과는 `outputs/result_table.csv`에 포함된다.

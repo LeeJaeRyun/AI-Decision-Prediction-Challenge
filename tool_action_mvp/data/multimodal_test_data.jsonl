@@ -1,0 +1,5 @@
+{"id":101,"instruction":"이미지에 보이는 회의 정보를 캘린더에 추가해줘.","image_path":"media/meeting_notice.png","gold_action":{"tool_name":"calendar.create_event","arguments":{"title":"Product Sync","date":"Tomorrow","time":"14:00"}}}
+{"id":102,"instruction":"이미지에 보이는 위치와 날짜로 날씨 조회 행동을 만들어줘.","image_path":"media/weather_card.png","gold_action":{"tool_name":"weather.search","arguments":{"location":"Seoul","date":"Tomorrow"}}}
+{"id":103,"instruction":"오디오에서 말한 요청을 다음 Agent 행동 JSON으로 바꿔줘.","audio_path":"media/email_instruction.wav","gold_action":{"tool_name":"email.send","arguments":{"recipient":"Professor Kim","subject":"Assignment submission","body":"I have submitted the report."}}}
+{"id":104,"instruction":"오디오에서 말한 슬랙 요청을 다음 Agent 행동 JSON으로 바꿔줘.","audio_path":"media/slack_instruction.wav","gold_action":{"tool_name":"slack.send_message","arguments":{"channel":"project","message":"The meeting starts in ten minutes."}}}
+{"id":105,"instruction":"이미지에 보이는 날씨 카드 내용을 바탕으로 사용자가 필요한 다음 행동을 예측해줘.","image_path":"media/weather_card.png","gold_action":{"tool_name":"weather.search","arguments":{"location":"Seoul","date":"Tomorrow"}}}
